@@ -3,45 +3,50 @@ from torch import nn
 
 class FNN(nn.Module):
     """ Feed Forward Network """
-    def __init__(self, seq_len: int, d_model: int, fnn_hidden_dim: int=None):
+    def __init__(self, seq_len: int, d_model: int, FFN_size: int):
         """
         Args:
             seq_len (int): Size of context window.
             d_model (int): Embedding dimension size (the "hidden dimension").
-            fnn_hidden_dim (int): Hidden dimension size between the two linear
-                layers. If not set, will use seq_len * d_model * 2.
+            FFN_size (int): Hidden dimension size between the two linear layers.
         """
         super().__init__()
 
-        if fnn_hidden_dim is None:
-            fnn_hidden_dim = seq_len * d_model * 2
+        self.seq_len = seq_len
+        self.d_model = d_model
 
         self.W_1 = nn.Linear(in_features=seq_len * d_model,
-                             out_features=fnn_hidden_dim,
+                             out_features=FFN_size,
                              bias=False)
-        self.W_2 = nn.Linear(in_features=fnn_hidden_dim,
+        self.W_2 = nn.Linear(in_features=FFN_size,
                              out_features=seq_len * d_model,
                              bias=False)
         self.gelu = nn.GELU()
 
     def forward(self, X: torch.Tensor):
         # Equation in paragraph below Equation 9 from the paper
-        return self.W_2(self.gelu(self.W_1(nn.Flatten(X)))).reshape(-1,
-                                                                    seq_len,
-                                                                    d_model)
+        return self.W_2(self.gelu(self.W_1(nn.Flatten(X))))\
+                    .reshape(-1, self.seq_len, self.d_model)
 
 
 class RetNetBlock(nn.Module):
-    def __init__(self, seq_len: int, d_model: int):
+    def __init__(self,
+                 seq_len: int,
+                 d_model: int,
+                 FFN_size: int,
+                 num_heads: int):
         """
         Args:
             seq_len (int): Size of context window.
-            d_model (int): Embedding dimension size (the "hidden dimension").
+            d_model (int): Embedding dimension size (the "hidden dimension" or
+                "hidden size").
+            FFN_size (int): Dimension size of the hidden layer in the FFN.
+            num_heads (int): Number of retention heads.
         """
         super().__init__()
 
         self.MSR = MSR()
-        self.FFN = FFN(seq_len=seq_len, d_model=d_model)
+        self.FFN = FFN(seq_len=seq_len, d_model=d_model, FFN_size=FFN_size)
         self.LN = nn.LayerNorm(d_model)
 
     def forward(self, Xsupl: torch.Tensor):
@@ -51,17 +56,25 @@ class RetNetBlock(nn.Module):
 
 
 class RetNet(nn.Module):
-    def __init__(self, seq_len: int, d_model: int, L: int=1):
+    def __init__(self,
+                 seq_len: int,
+                 d_model: int,
+                 L: int,
+                 FFN_size: int,
+                 num_heads: int):
         """
         Args:
             seq_len (int): Size of context window.
-            d_model (int): Embedding dimension size (the "hidden dimension").
-            L (int): Number of stacked RetNetBlocks in the model.
+            d_model (int): Embedding dimension size (the "hidden dimension" or
+                "hidden size").
+            L (int): Number of stacked RetNetBlocks in the model (the "layers").
+            FFN_size (int): Dimension size of the hidden layer in the FFN.
+            num_heads (int): Number of retention heads.
         """
         super().__init__()
 
         self.model = nn.Sequential(
-                [RetNetBlock(seq_len, d_model) for i in range(L)])
+                [RetNetBlock(seq_len, d_model, FFN_size, num_heads) for i in range(L)])
 
     def forward(self, Xsup0: torch.Tensor):
         # Compute contextualized vector representations, from end of first
