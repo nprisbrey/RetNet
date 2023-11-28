@@ -1,6 +1,35 @@
 import torch
 from torch import nn
 
+class MSR(nn.Module):
+    """ Multi-Scale Retention Module """
+    def __init__(self, h: int, d_model: int):
+        """
+        Args:
+            h (int): Number of heads.
+            d_model (int): Embedding dimension size (the "hidden dimension").
+        """
+        super().__init__()
+
+        # First line of Equation 8 from the paper
+        gammas = 1 - torch.exp2(-5 - torch.arange(0, h))
+
+        # Initialize second line of Equation 8 from the paper
+        self.heads = Retention(gammas)
+
+        # Initialize fourth line of Equation 8 from the paper
+        self.W_G = nn.Parameter(torch.randn(d_model, d_model))
+        self.W_O = nn.Parameter(torch.randn(d_model, d_model))
+        self.swish = nn.SiLU()
+
+    def forward(self, X: torch.Tensor):
+        # Third and fourth lines of Equation 8 from the paper
+        # NOTE: Move GroupNorm into Retention due to dimensions. Note that the
+        # shape of Y is (batch, seq_len, d_model)
+        Y = self.heads(X)
+        return torch.matmul(self.swish(torch.matmul(X, self.W_G)) * Y, self.W_O)
+
+
 class FFN(nn.Module):
     """ Feed Forward Network """
     def __init__(self, seq_len: int, d_model: int, FFN_size: int):
@@ -46,7 +75,7 @@ class RetNetBlock(nn.Module):
         """
         super().__init__()
 
-        self.MSR = MSR()
+        self.MSR = MSR(h=d_model / head_dim, d_model=d_model)
         self.FFN = FFN(seq_len=seq_len, d_model=d_model, FFN_size=FFN_size)
         self.LN = nn.LayerNorm(d_model)
 
