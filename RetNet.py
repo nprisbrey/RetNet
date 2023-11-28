@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-class FNN(nn.Module):
+class FFN(nn.Module):
     """ Feed Forward Network """
     def __init__(self, seq_len: int, d_model: int, FFN_size: int):
         """
@@ -74,7 +74,7 @@ class RetNet(nn.Module):
         super().__init__()
 
         self.model = nn.Sequential(
-                [RetNetBlock(seq_len, d_model, FFN_size, num_heads) for i in range(L)])
+                *(RetNetBlock(seq_len, d_model, FFN_size, head_dim) for i in range(L)))
 
     def forward(self, Xsup0: torch.Tensor):
         # Compute contextualized vector representations, from end of first
