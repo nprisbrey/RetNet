@@ -34,14 +34,15 @@ class RetNetBlock(nn.Module):
                  seq_len: int,
                  d_model: int,
                  FFN_size: int,
-                 num_heads: int):
+                 head_dim: int):
         """
         Args:
             seq_len (int): Size of context window.
             d_model (int): Embedding dimension size (the "hidden dimension" or
                 "hidden size").
             FFN_size (int): Dimension size of the hidden layer in the FFN.
-            num_heads (int): Number of retention heads.
+            head_dim (int): Dimension of retention heads. Must be a divisor of
+                            d_model.
         """
         super().__init__()
 
@@ -61,7 +62,7 @@ class RetNet(nn.Module):
                  d_model: int,
                  L: int,
                  FFN_size: int,
-                 num_heads: int):
+                 head_dim: int):
         """
         Args:
             seq_len (int): Size of context window.
@@ -69,7 +70,8 @@ class RetNet(nn.Module):
                 "hidden size").
             L (int): Number of stacked RetNetBlocks in the model (the "layers").
             FFN_size (int): Dimension size of the hidden layer in the FFN.
-            num_heads (int): Number of retention heads.
+            head_dim (int): Dimension of retention heads. Must be a divisor of
+                d_model.
         """
         super().__init__()
 
